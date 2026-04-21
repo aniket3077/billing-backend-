@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  owner
+  seller
+}
+
+enum ProductCategory {
+  seed
+  fertilizer
+  pesticide
+}
+
+enum PaymentType {
+  cash
+  khata
+}
+
+enum KhataType {
+  credit
+  debit
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id        String         @id @default(cuid())
+  name      String
+  category  ProductCategory
+  unit      String
+  price     Decimal        @db.Decimal(10, 2)
+  batches   Batch[]
+  saleItems SaleItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Batch {
+  id          String    @id @default(cuid())
+  productId   String
+  batchNumber String
+  expiryDate  DateTime
+  quantity    Int
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  saleItems   SaleItem[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, batchNumber])
+  @@index([expiryDate])
+}
+
+model Customer {
+  id                String             @id @default(cuid())
+  name              String
+  phone             String
+  email             String?
+  sales             Sale[]
+  khataTransactions KhataTransaction[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Sale {
+  id          String      @id @default(cuid())
+  customerId  String
+  totalAmount Decimal     @db.Decimal(10, 2)
+  paymentType PaymentType
+  createdAt   DateTime    @default(now())
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  saleItems   SaleItem[]
+
+  @@index([customerId, createdAt])
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  saleId    String
+  productId String
+  batchId   String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([productId])
+  @@index([batchId])
+}
+
+model KhataTransaction {
+  id          String   @id @default(cuid())
+  customerId  String
+  type        KhataType
+  amount      Decimal  @db.Decimal(10, 2)
+  referenceId String?
+  createdAt   DateTime @default(now())
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+}
